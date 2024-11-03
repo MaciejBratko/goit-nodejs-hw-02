@@ -4,7 +4,11 @@ const {
   getContactById,
   addContact,
   removeContact,
+  updateContact,
 } = require("../../models/contacts");
+
+const validateBody = require("../../middlewares/validation");
+const { contactSchema, updateContactSchema } = require("../../schemas/contact");
 
 const router = express.Router();
 
@@ -32,15 +36,10 @@ router.get("/:contactId", async (req, res, next) => {
   }
 });
 
-router.post("/", async (req, res, next) => {
+router.post("/", validateBody(contactSchema), async (req, res, next) => {
   try {
-    const { name, email, phone } = req.body;
-    if (!name || !email || !phone) {
-      return res.status(400).json({ message: `missing required name - field` });
-    } else {
-      const contact = await addContact(req.body);
-      res.status(201).json(contact);
-    }
+    const contact = await addContact(req.body);
+    res.status(201).json(contact);
   } catch (error) {
     next(error);
   }
@@ -60,8 +59,23 @@ router.delete("/:contactId", async (req, res, next) => {
   }
 });
 
-router.put("/:contactId", async (req, res, next) => {
-  res.json({ message: "template message" });
-});
+router.put(
+  "/:contactId",
+  validateBody(updateContactSchema),
+  async (req, res, next) => {
+    try {
+      const { contactId } = req.params;
+      const updatedContact = await updateContact(contactId, req.body);
+
+      if (updatedContact) {
+        res.status(200).json(updatedContact);
+      } else {
+        res.status(404).json({ message: "Not found" });
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 module.exports = router;
