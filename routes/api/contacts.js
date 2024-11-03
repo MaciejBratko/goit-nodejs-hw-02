@@ -1,5 +1,9 @@
 const express = require("express");
-const { listContacts } = require("../../models/contacts");
+const {
+  listContacts,
+  getContactById,
+  addContact,
+} = require("../../models/contacts");
 
 const router = express.Router();
 
@@ -13,11 +17,32 @@ router.get("/", async (req, res, next) => {
 });
 
 router.get("/:contactId", async (req, res, next) => {
-  res.json({ message: "template message" });
+  try {
+    const { contactId } = req.params;
+    const contact = await getContactById(contactId);
+
+    if (contact) {
+      res.status(200).json(contact);
+    } else {
+      res.status(404).json({ message: "Not found" });
+    }
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.post("/", async (req, res, next) => {
-  res.json({ message: "template message" });
+  try {
+    const { name, email, phone } = req.body;
+    if (!name || !email || !phone) {
+      return res.status(400).json({ message: `missing required name - field` });
+    } else {
+      const contact = await addContact(req.body);
+      res.status(201).json(contact);
+    }
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.delete("/:contactId", async (req, res, next) => {
