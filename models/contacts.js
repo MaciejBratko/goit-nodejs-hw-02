@@ -1,50 +1,50 @@
-const fs = require("fs/promises");
-const path = require("path");
+const mongoose = require("mongoose");
 
-const contactsPath = path.join(__dirname, "contacts.json");
+const contactSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, "Set name for contact"],
+  },
+  email: {
+    type: String,
+  },
+  phone: {
+    type: String,
+  },
+  favorite: {
+    type: Boolean,
+    default: false,
+  },
+});
+
+const Contact = mongoose.model("Contact", contactSchema);
 
 const listContacts = async () => {
-  const data = await fs.readFile(contactsPath);
-  return JSON.parse(data);
+  return Contact.find();
 };
 
 const getContactById = async (contactId) => {
-  const contacts = await listContacts();
-  const contact = contacts.find((item) => item.id === contactId);
-  return contact || null;
-};
-
-const addContact = async (body) => {
-  const contacts = await listContacts();
-  const newContact = { id: Date.now().toString(), ...body };
-  contacts.push(newContact);
-  await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-  return newContact || null;
+  return Contact.findById(contactId);
 };
 
 const removeContact = async (contactId) => {
-  const contacts = await listContacts();
-  const index = contacts.findIndex((item) => item.id === contactId);
-  if (index === -1) {
-    return null;
-  } else {
-    contacts.splice(index, 1);
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-    return contacts || null;
-  }
+  return Contact.findByIdAndDelete(contactId);
+};
+
+const addContact = async (body) => {
+  return Contact.create(body);
 };
 
 const updateContact = async (contactId, body) => {
-  const contacts = await listContacts();
-  const index = contacts.findIndex((item) => item.id === contactId);
+  return Contact.findByIdAndUpdate(contactId, body, { new: true });
+};
 
-  if (index === -1) {
-    return null;
-  } else {
-    contacts[index] = { ...contacts[index], ...body };
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-    return contacts[index];
-  }
+const updateStatusContact = async (contactId, body) => {
+  return Contact.findByIdAndUpdate(
+    contactId,
+    { favorite: body.favorite },
+    { new: true }
+  );
 };
 
 module.exports = {
@@ -53,4 +53,5 @@ module.exports = {
   removeContact,
   addContact,
   updateContact,
+  updateStatusContact,
 };
