@@ -2,16 +2,14 @@ const express = require("express");
 const logger = require("morgan");
 const cors = require("cors");
 const mongoose = require("mongoose");
+require('dotenv').config();
 
 const contactsRouter = require("./routes/api/contacts");
 
 const app = express();
 
-const password = encodeURIComponent("M@ciek12312312");
 mongoose
-  .connect(
-    `mongodb+srv://olaf4343:${password}@cluster0.yquce.mongodb.net/db-contacts?retryWrites=true&w=majority&appName=Cluster0`
-  )
+  .connect(process.env.DB_CONNECTION_STRING)
   .then(() => {
     console.log("Database connection successful");
   })
