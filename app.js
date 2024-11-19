@@ -1,23 +1,18 @@
 const express = require("express");
 const logger = require("morgan");
 const cors = require("cors");
-const mongoose = require("mongoose");
-require('dotenv').config();
+require("dotenv").config();
 
+const connectDB = require("./db");
 const contactsRouter = require("./routes/api/contacts");
 
 const app = express();
 
-mongoose
-  .connect(process.env.DB_CONNECTION_STRING)
-  .then(() => {
-    console.log("Database connection successful");
-  })
-  .catch((err) => {
-    console.error("Error connecting to the database");
-    console.error(err);
-    process.exit(1);
-  });
+connectDB().catch((err) => {
+  console.error("Error connecting to the database");
+  console.error(err);
+  process.exit(1);
+});
 
 const formatsLogger = app.get("env") === "development" ? "dev" : "short";
 
