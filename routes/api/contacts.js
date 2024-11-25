@@ -1,5 +1,4 @@
 const express = require("express");
-const auth = require("../../middleware/auth");
 const {
   listContacts,
   getContactById,
@@ -11,12 +10,9 @@ const {
 
 const router = express.Router();
 
-// Protect all routes with auth middleware
-router.use(auth);
-
 router.get("/", async (req, res, next) => {
   try {
-    const contacts = await listContacts(req.user._id);
+    const contacts = await listContacts();
     res.json(contacts);
   } catch (error) {
     next(error);
@@ -25,7 +21,7 @@ router.get("/", async (req, res, next) => {
 
 router.get("/:contactId", async (req, res, next) => {
   try {
-    const contact = await getContactById(req.params.contactId, req.user._id);
+    const contact = await getContactById(req.params.contactId);
     if (!contact) {
       return res.status(404).json({ message: "Not found" });
     }
@@ -37,7 +33,7 @@ router.get("/:contactId", async (req, res, next) => {
 
 router.post("/", async (req, res, next) => {
   try {
-    const contact = await addContact(req.body, req.user._id);
+    const contact = await addContact(req.body);
     res.status(201).json(contact);
   } catch (error) {
     next(error);
@@ -46,7 +42,7 @@ router.post("/", async (req, res, next) => {
 
 router.delete("/:contactId", async (req, res, next) => {
   try {
-    const contact = await removeContact(req.params.contactId, req.user._id);
+    const contact = await removeContact(req.params.contactId);
     if (!contact) {
       return res.status(404).json({ message: "Not found" });
     }
@@ -58,11 +54,7 @@ router.delete("/:contactId", async (req, res, next) => {
 
 router.put("/:contactId", async (req, res, next) => {
   try {
-    const contact = await updateContact(
-      req.params.contactId,
-      req.body,
-      req.user._id
-    );
+    const contact = await updateContact(req.params.contactId, req.body);
     if (!contact) {
       return res.status(404).json({ message: "Not found" });
     }
@@ -77,11 +69,7 @@ router.patch("/:contactId/favorite", async (req, res, next) => {
     if (req.body.favorite === undefined) {
       return res.status(400).json({ message: "missing field favorite" });
     }
-    const contact = await updateStatusContact(
-      req.params.contactId,
-      req.body,
-      req.user._id
-    );
+    const contact = await updateStatusContact(req.params.contactId, req.body);
     if (!contact) {
       return res.status(404).json({ message: "Not found" });
     }
