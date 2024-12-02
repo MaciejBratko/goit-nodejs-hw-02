@@ -7,7 +7,7 @@ const multer = require("multer");
 const path = require("path");
 const gravatar = require("gravatar");
 const jimp = require("jimp");
-const fs = require("fs");
+const fs = require("fs").promises;
 const User = require("../../models/user");
 const auth = require("../../middleware/auth");
 
@@ -159,20 +159,24 @@ router.patch(
       const avatarFileName = `${req.user._id}_${filename}`;
       const avatarPath = path.join("public", "avatars", avatarFileName);
 
-      // Process image with Jimp
-      const image = await jimp.read(tempUpload);
-      await image.resize(250, 250).writeAsync(avatarPath);
+      try {
+        // Process image with Jimp
+        const image = await jimp.read(tempUpload);
+        await image.resize(250, 250).writeAsync(avatarPath);
 
-      // Remove temp file
-      fs.unlink(tempUpload, (err) => {
-        if (err) console.error("Error removing temp file:", err);
-      });
+        // Update user's avatarURL
+        const avatarURL = `/avatars/${avatarFileName}`;
+        await User.findByIdAndUpdate(req.user._id, { avatarURL });
 
-      // Update user's avatarURL
-      const avatarURL = `/avatars/${avatarFileName}`;
-      await User.findByIdAndUpdate(req.user._id, { avatarURL });
-
-      res.json({ avatarURL });
+        res.json({ avatarURL });
+      } finally {
+        // Always try to remove the temp file
+        try {
+          await fs.unlink(tempUpload);
+        } catch (unlinkError) {
+          console.error("Error removing temp file:", unlinkError);
+        }
+      }
     } catch (error) {
       next(error);
     }
