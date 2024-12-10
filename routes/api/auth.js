@@ -3,6 +3,11 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Joi = require("joi");
+const multer = require("multer");
+const path = require("path");
+const gravatar = require("gravatar");
+const jimp = require("jimp");
+const fs = require("fs").promises;
 const User = require("../../models/user");
 const auth = require("../../middleware/auth");
 
@@ -10,6 +15,19 @@ const userSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().required(),
 });
+
+// Configure multer for avatar upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "tmp");
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage });
 
 // Signup route
 router.post("/signup", async (req, res, next) => {
@@ -28,6 +46,9 @@ router.post("/signup", async (req, res, next) => {
       return res.status(409).json({ message: "Email in use" });
     }
 
+    // Generate gravatar URL
+    const avatarURL = gravatar.url(email, { s: "250", d: "identicon" });
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -35,12 +56,14 @@ router.post("/signup", async (req, res, next) => {
     const user = await User.create({
       email,
       password: hashedPassword,
+      avatarURL,
     });
 
     res.status(201).json({
       user: {
         email: user.email,
         subscription: user.subscription,
+        avatarURL: user.avatarURL,
       },
     });
   } catch (error) {
@@ -89,6 +112,7 @@ router.post("/login", async (req, res, next) => {
       user: {
         email: user.email,
         subscription: user.subscription,
+        avatarURL: user.avatarURL,
       },
     });
   } catch (error) {
@@ -113,10 +137,50 @@ router.get("/current", auth, async (req, res, next) => {
     res.json({
       email: req.user.email,
       subscription: req.user.subscription,
+      avatarURL: req.user.avatarURL,
     });
   } catch (error) {
     next(error);
   }
 });
+
+// Update avatar route
+router.patch(
+  "/avatars",
+  auth,
+  upload.single("avatar"),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Avatar file is required" });
+      }
+
+      const { path: tempUpload, filename } = req.file;
+      const avatarFileName = `${req.user._id}_${filename}`;
+      const avatarPath = path.join("public", "avatars", avatarFileName);
+
+      try {
+        // Process image with Jimp
+        const image = await jimp.read(tempUpload);
+        await image.resize(250, 250).writeAsync(avatarPath);
+
+        // Update user's avatarURL
+        const avatarURL = `/avatars/${avatarFileName}`;
+        await User.findByIdAndUpdate(req.user._id, { avatarURL });
+
+        res.json({ avatarURL });
+      } finally {
+        // Always try to remove the temp file
+        try {
+          await fs.unlink(tempUpload);
+        } catch (unlinkError) {
+          console.error("Error removing temp file:", unlinkError);
+        }
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 module.exports = router;
