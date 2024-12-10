@@ -8,12 +8,18 @@ const path = require("path");
 const gravatar = require("gravatar");
 const jimp = require("jimp");
 const fs = require("fs").promises;
+const { v4: uuidv4 } = require('uuid');
 const User = require("../../models/user");
 const auth = require("../../middleware/auth");
+const { sendVerificationEmail } = require("../../middleware/verificationEmail");
 
 const userSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().required(),
+});
+
+const emailSchema = Joi.object({
+  email: Joi.string().email().required(),
 });
 
 // Configure multer for avatar upload
@@ -52,12 +58,19 @@ router.post("/signup", async (req, res, next) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Generate verification token
+    const verificationToken = uuidv4();
+
     // Create new user
     const user = await User.create({
       email,
       password: hashedPassword,
       avatarURL,
+      verificationToken,
     });
+
+    // Send verification email
+    await sendVerificationEmail(email, verificationToken);
 
     res.status(201).json({
       user: {
@@ -66,6 +79,64 @@ router.post("/signup", async (req, res, next) => {
         avatarURL: user.avatarURL,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Email verification route
+router.get("/verify/:verificationToken", async (req, res, next) => {
+  try {
+    const { verificationToken } = req.params;
+    const user = await User.findOne({ verificationToken });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    await User.findByIdAndUpdate(user._id, {
+      verify: true,
+      verificationToken: null,
+    });
+
+    res.json({ message: "Verification successful" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Resend verification email route
+router.post("/verify", async (req, res, next) => {
+  try {
+    // Validate request body
+    const { error } = emailSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ message: "missing required field email" });
+    }
+
+    const { email } = req.body;
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if already verified
+    if (user.verify) {
+      return res.status(400).json({ message: "Verification has already been passed" });
+    }
+
+    // Generate new verification token if needed
+    if (!user.verificationToken) {
+      user.verificationToken = uuidv4();
+      await user.save();
+    }
+
+    // Resend verification email
+    await sendVerificationEmail(email, user.verificationToken);
+
+    res.json({ message: "Verification email sent" });
   } catch (error) {
     next(error);
   }
@@ -86,6 +157,11 @@ router.post("/login", async (req, res, next) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: "Email or password is wrong" });
+    }
+
+    // Check if email is verified
+    if (!user.verify) {
+      return res.status(401).json({ message: "Email not verified" });
     }
 
     // Compare passwords
