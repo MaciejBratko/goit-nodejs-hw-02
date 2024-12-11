@@ -1,0 +1,37 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies
+node_modules
+npm-debug.log
+
+# Environment variables
+.env
+.env.*
+
+# Development files
+.eslintrc.js
+.eslintignore
+nodemon.json
+
+# Documentation
+*.md
+
+# Test files
+**/*.test.js
+jest.config.js
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea
+.vscode
+*.swp
+*.swo
+
+# Temporary files
+*.log
+*.tmp

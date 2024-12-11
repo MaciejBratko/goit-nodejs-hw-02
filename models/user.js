@@ -24,6 +24,14 @@ const userSchema = new Schema({
     type: String,
     default: null,
   },
+  verify: {
+    type: Boolean,
+    default: false,
+  },
+  verificationToken: {
+    type: String,
+    default: null,
+  },
 });
 
 const User = mongoose.model("user", userSchema);
